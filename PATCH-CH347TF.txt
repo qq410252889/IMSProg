@@ -1,0 +1,68 @@
+IMSProg 1.9.1 — CH347T + CH347F 双支持改动说明
+=================================================
+
+源码来源: https://github.com/qq410252889/IMSProg (用户 fork)
+基线版本: 1.9.1
+改动目标: 在同一个构建中同时支持 CH347T 与 CH347F 编程器
+
+一、支持配置
+--------------------------------------------------
+| 芯片   | PID    | SPI/MPHSI 接口号 | 端点        |
+|--------|--------|-----------------|-------------|
+| CH347T | 0x55db | 2               | 0x06 / 0x86 |
+| CH347F | 0x55de | 4               | 0x06 / 0x86 |
+
+二、改动文件清单
+--------------------------------------------------
+1. IMSProg_programmer/ch347.h
+   - 删除单芯片宏 CH347_SPI_PID / CH347_SPI_IF
+   - 新增 CH347T_SPI_PID=0x55db / CH347T_SPI_IF=2
+          CH347F_SPI_PID=0x55de / CH347F_SPI_IF=4
+   - struct ch347_priv 新增字段 if_num（记录实际 claim 的接口号）
+
+2. IMSProg_programmer/ch347.c
+   - ch347_open() 改为自动探测：按设备表依次尝试
+     {0x55db, IF2}(CH347T) → {0x55de, IF4}(CH347F)，
+     任一成功即返回；每个失败候选均正确清理
+   - ch347_close() / 失败路径使用 priv->if_num 释放接口
+
+3. IMSProg_programmer/spi_controller.c（参与编译）
+   与根目录 spi_controller.c（库快照，同步修改）
+   - 8 处 switch(deviceType) 增加 case 5 (CH347F)，
+     与 CH347T 共享处理
+   - getInterfaceSpeed 速度表第 6 行由 Reserved 改为
+     CH347F 参数 {30000, 400, 1600, 5000, 5000, 5000, 60000}
+
+4. IMSProg_programmer/mainwindow.ui
+   - Programmer 菜单新增 "CH347F" 项 (actionCH347F)
+
+5. IMSProg_programmer/mainwindow.h / mainwindow.cpp
+   - 新增槽 on_actionCH347F_triggered()，current_programmer = 5
+   - 配置恢复、状态栏、烧录期间禁用/启用均纳入型号 5
+   - 10 处 I2C / 3-wire 分支判断由 current_programmer < 4
+     改为 (current_programmer < 4) || (current_programmer == 5)，
+     使 CH347F 与 CH347T 走相同的 CH347 通信路径
+
+6. IMSProg_programmer/other/71-CH341.rules (Linux udev)
+   - idProduct 匹配增加 55de
+
+7. IMSProg_programmer/other/io.github.bigbigmdm.imsprog.metainfo.xml
+   - modalias 增加 usb:v1A86p55DEd*
+
+三、构建方法（Windows，MSYS2/MinGW 官方方式）
+--------------------------------------------------
+cd IMSProg/build
+cmake .. -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=RELEASE ^
+      -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -static" ^
+      -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -static"
+cmake --build . -j4
+产物: IMSProg_programmer/IMSProg.exe、IMSProg_editor/IMSProg_editor.exe、
+      IMSProg_database_update/IMSProg_database_update.exe
+
+四、Windows 驱动要点
+--------------------------------------------------
+- IMSProg 通过 libusb 访问设备，CH347 必须绑定 WinUSB 驱动
+  （用 Zadig，Options -> List All Devices）：
+  * CH347T: 给 Interface 2 装 WinUSB（USB ID 1A86:55DB）
+  * CH347F: 给 Interface 4 装 WinUSB（USB ID 1A86:55DE）
+- 安装前先卸载沁恒 CH341PAR 官方驱动（两者互斥）

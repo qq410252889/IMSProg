@@ -281,8 +281,22 @@ int32_t ch347setSDAandSCLHighlevels()
 }
 
 
+/* Supported CH347 devices: PID -> USB interface to claim for the MPHSI (SPI/I2C) bus.
+ * CH347T (mode 1, UART+I2C+SPI) -> 0x55db / interface 2
+ * CH347F (nine-in-one)        -> 0x55de / interface 4
+ */
+static const struct {
+    uint16_t pid;
+    uint8_t if_num;
+} ch347_device_table[] = {
+    { CH347T_SPI_PID, CH347T_SPI_IF },
+    { CH347F_SPI_PID, CH347F_SPI_IF },
+};
+
 struct ch347_priv *ch347_open() {
     struct ch347_priv *priv = calloc(1, sizeof(struct ch347_priv));
+    libusb_device_handle *handle;
+    unsigned int i;
     int ret;
 
     if (!priv) {
@@ -292,43 +306,50 @@ struct ch347_priv *ch347_open() {
     ret = libusb_init(&priv->ctx);
     if (ret < 0) {
         perror("ch347: libusb: init");
-        goto ERR_0;
+        free(priv);
+        return NULL;
     }
 
 #if LIBUSBX_API_VERSION >= 0x01000106
     libusb_set_option(priv->ctx, LIBUSB_OPTION_LOG_LEVEL, LIBUSB_LOG_LEVEL_INFO);
 #endif
-    priv->handle = libusb_open_device_with_vid_pid(priv->ctx, CH347_SPI_VID, CH347_SPI_PID);
-    if (!priv->handle) {
-        perror("ch347: libusb: open");
-        goto ERR_1;
+
+    /* Probe every supported CH347 (T and F); each failed candidate is
+     * cleaned up and the next one is tried. */
+    for (i = 0; i < sizeof(ch347_device_table) / sizeof(ch347_device_table[0]); i++) {
+        handle = libusb_open_device_with_vid_pid(priv->ctx, CH347_SPI_VID, ch347_device_table[i].pid);
+        if (!handle)
+            continue;
+
+        libusb_set_auto_detach_kernel_driver(handle, 1);
+        ret = libusb_claim_interface(handle, ch347_device_table[i].if_num);
+        if (ret < 0) {
+            fprintf(stderr, "ch347: libusb: claim_if (PID 0x%04x, IF %d): %s\n",
+                    ch347_device_table[i].pid, ch347_device_table[i].if_num, libusb_error_name(ret));
+            libusb_close(handle);
+            continue;
+        }
+
+        priv->handle = handle;
+        priv->if_num = ch347_device_table[i].if_num;
+        if (ch347_get_hw_config(priv)) {
+            libusb_release_interface(priv->handle, priv->if_num);
+            libusb_close(priv->handle);
+            continue;
+        }
+
+        return priv;
     }
 
-    libusb_set_auto_detach_kernel_driver(priv->handle, 1);
-    ret = libusb_claim_interface(priv->handle, CH347_SPI_IF);
-    if (ret < 0) {
-        perror("ch347: libusb: claim_if");
-        goto ERR_2;
-    }
-
-    if (ch347_get_hw_config(priv))
-        goto ERR_3;
-
-    return priv;
-
-    ERR_3:
-    libusb_release_interface(priv->handle, CH347_SPI_IF);
-    ERR_2:
-    libusb_close(priv->handle);
-    ERR_1:
+    fprintf(stderr, "ch347: no supported CH347 device found (tried CH347T PID 0x%04x, CH347F PID 0x%04x).\n",
+            CH347T_SPI_PID, CH347F_SPI_PID);
     libusb_exit(priv->ctx);
-    ERR_0:
     free(priv);
     return NULL;
 }
 
 void ch347_close(struct ch347_priv *priv) {
-    libusb_release_interface(priv->handle, CH347_SPI_IF);
+    libusb_release_interface(priv->handle, priv->if_num);
     libusb_close(priv->handle);
     libusb_exit(priv->ctx);
     free(priv);

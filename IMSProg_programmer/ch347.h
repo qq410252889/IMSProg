@@ -35,8 +35,14 @@ extern "C" {
 #endif
 
 #define CH347_SPI_VID 0x1a86
-#define CH347_SPI_PID 0x55de
-#define CH347_SPI_IF 2
+
+/* CH347T (WCH mode 1: UART + I2C + SPI): enumerates as PID 0x55db, MPHSI interface is 2 */
+#define CH347T_SPI_PID 0x55db
+#define CH347T_SPI_IF 2
+/* CH347F (nine-in-one: 2xUART + SPI + I2C + JTAG + SWD): enumerates as PID 0x55de, MPHSI interface is 4 */
+#define CH347F_SPI_PID 0x55de
+#define CH347F_SPI_IF 4
+
 #define CH347_EPOUT (6 | LIBUSB_ENDPOINT_OUT)
 #define CH347_EPIN (6 | LIBUSB_ENDPOINT_IN)
 
@@ -124,6 +130,7 @@ struct ch347_priv {
     struct ch347_spi_hw_config cfg;
     libusb_context *ctx;
     libusb_device_handle *handle;
+    uint8_t if_num; /* USB interface claimed for the detected chip (2=CH347T, 4=CH347F) */
     uint8_t tmpbuf[510];//tmpbuf[509];//tmpbuf[8192];  // old - 512
 };
 
