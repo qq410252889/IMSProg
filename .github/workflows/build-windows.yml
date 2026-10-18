@@ -35,6 +35,13 @@ jobs:
             mingw-w64-ucrt-x86_64-qt6-base
             mingw-w64-ucrt-x86_64-qt6-tools
             mingw-w64-ucrt-x86_64-qt6-svg
+            mingw-w64-ucrt-x86_64-qt6-imageformats
+            mingw-w64-ucrt-x86_64-libjpeg-turbo
+            mingw-w64-ucrt-x86_64-libtiff
+            mingw-w64-ucrt-x86_64-libwebp
+            mingw-w64-ucrt-x86_64-libmng
+            mingw-w64-ucrt-x86_64-jasper
+            mingw-w64-ucrt-x86_64-glib2
             mingw-w64-ucrt-x86_64-libftdi
             mingw-w64-ucrt-x86_64-libusb
             pkgconf
