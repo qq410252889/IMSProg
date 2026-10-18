@@ -21,8 +21,8 @@ collect_deps() {
     bin="${queue[0]}"; queue=("${queue[@]:1}")
     deps="$(objdump -p "$bin" 2>/dev/null | awk '/DLL Name/{print $3}' | grep -Ei '\.dll$' || true)"
     for d in $deps; do
-      if [ -f "/mingw64/bin/$d" ] && [ ! -f "$STAGE/$d" ]; then
-        cp "/mingw64/bin/$d" "$STAGE/"
+      if [ -f "/ucrt64/bin/$d" ] && [ ! -f "$STAGE/$d" ]; then
+        cp "/ucrt64/bin/$d" "$STAGE/"
         queue+=("$STAGE/$d")
       fi
     done
@@ -33,7 +33,7 @@ collect_deps "build/IMSProg_editor/IMSProg_editor.exe"
 collect_deps "build/IMSProg_database_update/IMSProg_database_update.exe"
 
 echo "==> 3/5 复制 Qt 插件"
-PLUGIN_SRC="/mingw64/share/qt6/plugins"
+PLUGIN_SRC="/ucrt64/share/qt6/plugins"
 for sub in platforms styles imageformats iconengines tls generic networkinformation; do
   if [ -d "$PLUGIN_SRC/$sub" ]; then
     cp -r "$PLUGIN_SRC/$sub" "$STAGE/"
