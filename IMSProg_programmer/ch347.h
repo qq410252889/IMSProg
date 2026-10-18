@@ -35,7 +35,7 @@ extern "C" {
 #endif
 
 #define CH347_SPI_VID 0x1a86
-#define CH347_SPI_PID 0x55db
+#define CH347_SPI_PID 0x55de
 #define CH347_SPI_IF 2
 #define CH347_EPOUT (6 | LIBUSB_ENDPOINT_OUT)
 #define CH347_EPIN (6 | LIBUSB_ENDPOINT_IN)
