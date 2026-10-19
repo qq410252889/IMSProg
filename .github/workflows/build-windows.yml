@@ -80,4 +80,4 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
-          files: dist/${GITHUB_REF_NAME}-windows.zip
+          files: dist/${{ github.ref_name }}-windows.zip

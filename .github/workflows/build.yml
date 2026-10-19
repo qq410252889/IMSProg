@@ -116,11 +116,16 @@ jobs:
       - name: Check RPM with rpmlint
         run: |
           rpmlint ~/rpmbuild/RPMS/*/*.rpm || true
+      - name: Collect RPM artifacts
+        run: |
+          mkdir -p dist-rpm
+          find ~/rpmbuild/RPMS -name "*.rpm" -exec cp {} dist-rpm/ \;
+          ls -la dist-rpm/
       - name: Upload RPM Artifacts
         uses: actions/upload-artifact@main
         with:
           name: fedora-44-rpm
-          path: ~/rpmbuild/RPMS/*/*.rpm
+          path: dist-rpm/*.rpm
 
   # --- MacOS ---
   macos:
