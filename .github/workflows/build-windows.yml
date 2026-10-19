@@ -65,13 +65,19 @@ jobs:
           bash .github/scripts/package-win.sh
 
       - name: Upload artifact
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v7
         with:
           name: IMSProg_win-amd64
           path: dist/IMSProg_win-amd64.zip
 
+      - name: Rename release asset
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mv dist/IMSProg_win-amd64.zip "dist/${GITHUB_REF_NAME}-windows.zip"
+
       - name: Publish Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
-          files: dist/IMSProg_win-amd64.zip
+          files: dist/${GITHUB_REF_NAME}-windows.zip

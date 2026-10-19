@@ -254,3 +254,50 @@ jobs:
         with:
           name: macos-arm64-dmg
           path: dist-dmg/*.dmg
+
+  # --- 发布：把 Linux(macOS) 产物按「版本号+系统」命名上传到 Release ---
+  # Windows 产物由 build-windows.yml 的 Publish Release 步骤上传（<tag>-windows.zip）
+  publish-release:
+    needs: [amd64, fedora-rpm, macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dl
+          pattern: "*"
+          merge-multiple: true
+
+      - name: Assemble release assets with tag naming
+        run: |
+          set -euxo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          mkdir -p release_assets
+          # Debian 包：vX.Y-linux-ubuntu-22.deb 等
+          for f in dl/imsprog-*-amd64.deb; do
+            [ -e "$f" ] || continue
+            distro=$(basename "$f" | sed 's/^imsprog-//; s/-amd64\.deb$//' | tr '[:upper:]' '[:lower:]')
+            cp "$f" "release_assets/${TAG}-linux-${distro}.deb"
+          done
+          # Fedora RPM：vX.Y-linux-fedora.rpm（多个时加序号）
+          i=0
+          for f in dl/*.rpm; do
+            [ -e "$f" ] || continue
+            i=$((i+1))
+            if [ "$i" -eq 1 ]; then name="${TAG}-linux-fedora.rpm"; else name="${TAG}-linux-fedora-${i}.rpm"; fi
+            cp "$f" "release_assets/${name}"
+          done
+          # macOS DMG：vX.Y-macos-arm64.dmg
+          for f in dl/*.dmg; do
+            [ -e "$f" ] || continue
+            cp "$f" "release_assets/${TAG}-macos-arm64.dmg"
+          done
+          ls -la release_assets/
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: release_assets/*
